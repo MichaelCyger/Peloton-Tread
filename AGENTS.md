@@ -108,7 +108,17 @@ The first launch may show "Enter Tread Lock PIN". The owner types the PIN they s
 
 The Watch grid is every launcher app that is not hidden by the prefixes in `HomeActivity.HIDE_PREFIXES`. Apps already on the tablet show up after install. New apps show up on the next resume of Home.
 
-On the reference tablet, Netflix, Prime Video, Disney+, HBO Max, Peacock, and Apple TV were already installed and launched under the bar. Prefer those. They do not need Google Play services.
+On the reference tablet, Netflix, Prime Video, Disney+, HBO Max, Peacock, and Apple TV were already installed and launched under the bar. Prefer those. Apple TV, Netflix, and Prime Video do not need Google Play services. Disney+, HBO Max, and Peacock hang at launch if Play services is installed but its main process is dead (HBO Max ANR, Disney+ spinner, Peacock load screen; log: `Timeout waiting for provider com.google.android.gms.chimera`).
+
+If Play services, Services Framework, and the Play Store are already installed, this is the state that made all of those apps open on the reference tablet:
+
+```bash
+adb shell pm grant com.google.android.gms android.permission.INTERACT_ACROSS_USERS
+adb shell pm disable-user --user 0 com.google.android.gsf
+adb shell pm disable-user --user 0 com.android.vending
+```
+
+`INTERACT_ACROSS_USERS` is a development permission, so `pm grant` works, and it fixes the `isSingleton` crash below. Services Framework and the Play Store then crash-loop on `MANAGE_USERS` (signature|privileged, not grantable), so they stay disabled. Keep Play services enabled: YouTube exits at launch and Peacock opens Play services' App info page when it is disabled. Play services' location module still crashes on `LOCATION_HARDWARE` every few seconds, more often while Apple TV is open. That is expected. Shell cannot disable components inside a non-system app on this build, so do not try `pm disable pkg/component`. Undo with `pm enable` on the two packages and `pm revoke` on the grant.
 
 Do not install Google Play services, the Play Store, or YouTube TV unless the owner explicitly asks, and tell them the result first:
 

@@ -80,7 +80,7 @@ These are notes from exercising this software on that one Android 10 Tread. They
 
 **Did not hold up**
 
-- YouTube TV was installed and tried. It opens onto a spinner and never becomes usable. It depends on Google Play services, and this tablet's Android will not keep Play services running. The services process is blocked by the system, and a reboot does not change that. The streaming apps already on the Watch screen, such as Netflix and Prime Video, do not need Play services, and those are the ones that work.
+- YouTube TV was installed and tried before the Play services settings below. It opened onto a spinner and never became usable. It has not been retried since.
 - Replacing the operating system, unlocking the bootloader, or flashing a different system. This repo does not do that. The tablet above is a locked user build with no root. Projects that talk about doing that to a Peloton Bike are a different project.
 
 **Behavior worth knowing**
@@ -90,6 +90,32 @@ These are notes from exercising this software on that one Android 10 Tread. They
 - "I'm sure" is the confirmation on the stop modal. It freezes those numbers, sets the belt to 0 mph, and shows the summary. Close clears the numbers and leaves the belt at 0 mph. The safety key still stops the belt on its own.
 - The screensaver starts after a minute of no use and no touch, or when you tap the sleep button. Hold that button for the corner burst. While it is up, the metrics bar and the bottom row are hidden. TIME keeps counting, and the belt is unchanged. Tap the screen to bring the Watch view back.
 - Leave a few hundred megabytes free on `/data`. Filling the tablet makes installs fail.
+
+## Google Play services
+
+The Tread does not ship with Google Play services. On that machine, Play services, Google Services Framework, and the Play Store were sideloaded as ordinary apps. They expect to be system apps, and without the system permissions they crash. The worst case is Play services installed but not running. The main Play services process crashed at boot, the system kept treating it as alive, and any app that asked it for something waited on a process that was gone. HBO Max showed "isn't responding," Disney+ spun forever, and Peacock never got past its load screen. Apple TV, Netflix, and Prime Video do not depend on Play services and worked throughout.
+
+Three adb settings fixed it on that machine. They need no root, they leave the system partition alone, and they survive a reboot:
+
+```bash
+adb shell pm grant com.google.android.gms android.permission.INTERACT_ACROSS_USERS
+adb shell pm disable-user --user 0 com.google.android.gsf
+adb shell pm disable-user --user 0 com.android.vending
+```
+
+- The grant lets the main Play services process start. `INTERACT_ACROSS_USERS` is the only permission it crashed on that adb is allowed to grant.
+- Google Services Framework and the Play Store crash-loop on `MANAGE_USERS`, which adb cannot grant, and they made Play services hang. Every app on that tablet was installed over adb, so nothing needs the Play Store.
+- Play services stays on. YouTube quits at launch without it, and Peacock sends you to Settings to turn it back on.
+
+After this, Disney+, HBO Max, Peacock, YouTube, Apple TV, Netflix, and Prime Video all open. Play services' location module still crashes in the background every few seconds, more often while Apple TV is open, because it needs `LOCATION_HARDWARE`. Only a system install can grant that. It has not caused a hang so far. If an app starts freezing at launch again, look there first.
+
+To undo:
+
+```bash
+adb shell pm enable com.google.android.gsf
+adb shell pm enable com.android.vending
+adb shell pm revoke com.google.android.gms android.permission.INTERACT_ACROSS_USERS
+```
 
 ## Put it back
 
