@@ -71,7 +71,7 @@ These are notes from exercising this software on that one Android 10 Tread. They
 
 **Held up**
 
-- Watch lists the apps already installed on the tablet (on that machine: Apple TV, Disney+, HBO Max, Netflix, Peacock, Prime Video, Settings) and launches them.
+- Watch lists the apps already installed on the tablet (on that machine: Apple TV, Disney+, Firefox, HBO Max, Netflix, Paramount+, Peacock, Prime Video, Settings, YouTube) and launches them.
 - The metrics bar reads incline, pace, time, miles, and speed, in that order. Speed is on the right. All five numbers are the same size, and the labels are the same color. Minimized, the pill shows miles. Pause freezes time and distance and leaves the belt running. I'm sure stops the belt and shows a summary. Close clears the bar. The bar sits on top of a show and does not steal clicks from the show.
 - The physical speed knob and incline knob still change the belt, in the same 0.1 mph and 0.5% steps as Just Run.
 - The passcode is requested once. After that the app remembers it on the tablet and clears Tread Lock itself, including after a reboot. The safety key is a separate mechanism and is not part of that.
@@ -116,6 +116,31 @@ adb shell pm enable com.google.android.gsf
 adb shell pm enable com.android.vending
 adb shell pm revoke com.google.android.gms android.permission.INTERACT_ACROSS_USERS
 ```
+
+## Paramount+, and making room for it
+
+The tablet's data partition is about 4 GB, and with the apps above it was down to 407 MB free. Installs start failing when it gets that tight, so something had to go first.
+
+**Lanebreak came off.** Lanebreak is Peloton's running game (package `com.onepeloton.odyssey`). It took about 219 MB, had never been opened on that machine, and is not part of the belt controller. Removing it freed about 250 MB. A copy of the APK was saved first, so it can go back on with `adb install`.
+
+![Paramount+ on the Watch grid, next to Peacock and Prime Video](images/Peloton_Watch_Paramount.png)
+
+**Paramount+ went on.** Paramount+ was installed from APKMirror. Every piece of the bundle was checked first and was signed by CBS Interactive.
+
+| | |
+|---|---|
+| Package | `com.cbs.app` (the phone and tablet app) |
+| Version | 17.3.0 (versionCode 420000982) |
+| Bundle | APKMirror "universal, 160–640dpi, Android 7.0+" |
+| Pieces installed | base, `arm64_v8a`, `mdpi`, `xxhdpi` |
+| Signer certificate SHA-256 | `a7520085336e50053de6b8b92e5ab89b6f62b5c22653e5684870586d02fb014e` |
+| Space used | about 90 MB |
+
+It opens in about a second to the Paramount+ welcome screen, and Sign in offers email and password or a TV provider. The metrics bar stays on top. Unlike HBO Max and Peacock, it did not hang waiting on Play services. Playback has not been tested yet, because that needs a signed-in account. Afterward there was 574 MB free.
+
+Use the phone and tablet app. The other Paramount+ package, `com.cbs.ott`, is for Android TV and requires a TV feature the Tread does not have.
+
+![Paramount+ sign-in screen on the Tread](images/Peloton_Paramount_SignIn.png)
 
 ## Put it back
 

@@ -108,7 +108,7 @@ The first launch may show "Enter Tread Lock PIN". The owner types the PIN they s
 
 The Watch grid is every launcher app that is not hidden by the prefixes in `HomeActivity.HIDE_PREFIXES`. Apps already on the tablet show up after install. New apps show up on the next resume of Home.
 
-On the reference tablet, Netflix, Prime Video, Disney+, HBO Max, Peacock, and Apple TV were already installed and launched under the bar. Prefer those. Apple TV, Netflix, and Prime Video do not need Google Play services. Disney+, HBO Max, and Peacock hang at launch if Play services is installed but its main process is dead (HBO Max ANR, Disney+ spinner, Peacock load screen; log: `Timeout waiting for provider com.google.android.gms.chimera`).
+On the reference tablet, Netflix, Prime Video, Disney+, HBO Max, Peacock, and Apple TV were already installed and launched under the bar. Paramount+ and Firefox were added later (see Paramount+ below). Prefer those. Apple TV, Netflix, and Prime Video do not need Google Play services. Disney+, HBO Max, and Peacock hang at launch if Play services is installed but its main process is dead (HBO Max ANR, Disney+ spinner, Peacock load screen; log: `Timeout waiting for provider com.google.android.gms.chimera`).
 
 If Play services, Services Framework, and the Play Store are already installed, this is the state that made all of those apps open on the reference tablet:
 
@@ -131,6 +131,37 @@ Do not install Google Play services, the Play Store, or YouTube TV unless the ow
 If the owner does not need signed-out YouTube, leave Google's packages off. They consume the small data partition and crash in the background.
 
 Sideload a single APK with `adb install -r`. A bundle (`.apkm` / `.xapk`, which are zip files) needs `adb install-multiple -r` of the base APK plus the `arm64-v8a` split. Do not also install unused ABI splits if space is tight; the reference tablet is `arm64-v8a`.
+
+### Paramount+
+
+Installed on the reference tablet on Nov 8, 2026, after the owner asked for it and had the agent fetch the bundle from APKMirror, the same source as the other streaming bundles. Before installing, check that every split is signed by CBS with `apksigner verify --print-certs`. `app/build.sh` points `JAVA_HOME` at `/usr/local/opt/openjdk`; `apksigner` needs the same.
+
+- Package `com.cbs.app` (phone/tablet build), version 17.3.0, versionCode 420000982, minSdk 24, targetSdk 36.
+- Bundle: APKMirror "Paramount+ 17.3.0 (universal) (160-640dpi) (Android 7.0+)", `com.cbs.app_17.3.0-420000982_4arch_3dpi_..._apkmirror.com.apkm`, 49,861,190 bytes, SHA-256 `c9a673dce6aafa80f2ea4ddc11b1aa26df8e72c388aec06f0686fb4a40e4cd57`.
+- Signer: `CN=CBS Interactive Mobile, O=CBS Interactive`. Certificate SHA-256 `a7520085336e50053de6b8b92e5ab89b6f62b5c22653e5684870586d02fb014e`, SHA-1 `f1c2d55f1759221a516f09766c59bc56b0b1e6e3`. Do not install a Paramount+ APK signed by anything else.
+- Splits installed: `base.apk`, `split_config.arm64_v8a.apk`, `split_config.mdpi.apk`, `split_config.xxhdpi.apk`. The tablet is 240 dpi and the bundle has no hdpi split; mdpi plus xxhdpi lets Android pick. Skip the armeabi-v7a, x86, x86_64, and xxxhdpi splits.
+
+```bash
+adb install-multiple -r base.apk split_config.arm64_v8a.apk split_config.mdpi.apk split_config.xxhdpi.apk
+```
+
+- Do not use `com.cbs.ott`. That is the Android TV build and requires `android.software.leanback`, which the Tread does not report. The arm64-only `com.cbs.app` variant is 480–640 dpi; the universal one above covers 160 dpi too. Skip variants marked Android 12L+.
+- Result: launches in about a second to the upsell screen with Get started and Sign in. Sign in shows email/password and Connect provider. Play services binds (clearcut, scheduler, trustedtime) and Paramount+ does not hang on it. No `com.cbs.app` crash. Playback is not confirmed until the owner signs in.
+- On-disk cost was about 90 MB of `/data` (661 MB free before, 574 MB after).
+- APKMirror's Cloudflare check blocks `curl`, and Cursor's browser does not save downloads to disk. `open "<apkmirror download/?key=... URL>"` in the owner's default browser saved it to `~/Downloads`.
+
+### Making room on `/data`
+
+Lanebreak (`com.onepeloton.odyssey` 2.7.2926, versionCode 2072926, installed by `com.onepeloton.dm.android`) is Peloton's Unity running game. It is a non-system app, not the controller. It took about 219 MB (100 MB APK plus 119 MB native libraries), and uninstalling it took `/data` from 407 MB to 661 MB free. The owner had it removed on Nov 8, 2026, after a copy was pulled to the owner's Mac (outside this repo; APKs are never committed):
+
+```bash
+adb pull "$(adb shell pm path com.onepeloton.odyssey | sed 's/^package://' | tr -d '\r')" com.onepeloton.odyssey-2.7.2926.apk
+adb uninstall com.onepeloton.odyssey
+```
+
+Backup SHA-256: `ce8d512a66e6720d675ee15fac873c8f9c8dfc77e316bb3dbb6b2553bb12ccf3`. Restore with `adb install com.onepeloton.odyssey-2.7.2926.apk`.
+
+Other large `/data` apps on the reference tablet, code only (APK plus native libraries): Firefox ~319 MB (the owner uses it to sign in to HBO Max through AT&T; keep it), YouTube ~270 MB, Play services ~268 MB (Max, Disney+, Peacock, and YouTube need it), Prime Video ~197 MB, Netflix ~122 MB. Peloton's updated system apps (`com.onepeloton.tts` ~121 MB, `com.android.webview` ~128 MB, the disabled `com.peloton.activity` ~105 MB) also sit in `/data`. Do not uninstall those updates; they are system packages and not part of this project.
 
 ## Bluetooth
 
